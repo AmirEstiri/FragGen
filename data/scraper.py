@@ -1,6 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import ast
+import time
+import os
 
 ### Global URL and Header ###
 url = 'https://www.fragrantica.com/'
@@ -40,8 +43,6 @@ def extract_fragrances_designer(href):
     index = 3
     empty = False
     while True:
-        if index % 100 == 0:
-            print(index)
         frag_element = \
             soup.select(f'div.text-left:nth-child({index}) > div:nth-child(1) > div:nth-child(3) > h3:nth-child(1) > a:nth-child(1)')
 
@@ -62,37 +63,71 @@ def extract_fragrances_designer(href):
     return frag_hrefs
 
 
-def extract_save_links():
+def save_fragrance_links():
     """
     Extract names and links for all fragrances and save them as json in dict format:
     {designer_name: [fragrance_name1, fragrance_name2, ...], ...}
+    Website blocks too many consecutive requets. You should run this function multiple times
+    until all of the data is collected.
     """
     href_dataset = {}
 
     designer_hrefs, designers = extract_designers()
+    f = open("data/links/href_dataset.json")
+    href_dataset = json.load(f)
+    f.close()
 
     for ref, name in zip(designer_hrefs, designers):
-        href_dataset[name] = extract_fragrances_designer(ref)
-        print(f"Finished: {len(href_dataset[name])}")
+        if len(href_dataset[name]) == 0:
+            print(f"{name}, {ref}")
+            href_dataset[name] = extract_fragrances_designer(ref)
+            print(f"Finished: {len(href_dataset[name])}")
 
     json_dataset = json.dumps(href_dataset)
-    f = open("href_dataset.json", "w")
+    f = open("data/links/href_dataset.json", "w")
     f.write(json_dataset)
     f.close()
 
 
-def extract_comments(frag_ref):
-    comments = []
+def save_page_binary_content():
+    """
+    Extract response from file and save binary content to different files
+    """
+    f = open("data/links/hrefs.txt", "r")
+    link_list_txt = f.read()
+    link_list_txt = link_list_txt.replace('\n', '')
+    link_list = ast.literal_eval(link_list_txt)
+    print(len(link_list))
 
-    response = requests.get(frag_ref, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
+    for i, link in enumerate(link_list):
+        response = requests.get(link, headers=headers)
 
-    # "#dd1765803 > div:nth-child(2) > div:nth-child(1)"
-    # "#dd1723982 > div:nth-child(2) > div:nth-child(1)"
-    # "#dd1723016 > div:nth-child(3) > div:nth-child(1)"
-    # "#dd1660041 > div:nth-child(2) > div:nth-child(1)"
-    # "#dd2165 > div:nth-child(2) > div:nth-child(1)"
-    
+        if response.status_code == 200:
+            print(link.split('/')[-1][:-5])
+            f = open(f"data/pages/{link.split('/')[-1][:-5]}.xls", "wb")
+            f.write(response.content)
+            f.close()
+        
+        else:
+            print("Wait for 10 mins!")
+            time.sleep(600)
+            response = requests.get(link, headers=headers)
+            print(link.split('/')[-1][:-6])
+            f = open(f"data/pages/{link.split('/')[-1][:-5]}.xls", "wb")
+            f.write(response.content)
+            f.close()
 
 
-extract_save_links()
+def read_frag_content(f_name):
+
+    f = open(f"data/pages/{f_name}", "rb")
+    content = f.read()
+    soup = BeautifulSoup(content, 'html.parser')
+    comment = soup.select("#dd1766331 > div:nth-child(2) > div:nth-child(1)")
+    print(comment)
+
+
+
+# save_page_binary_content()
+
+read_frag_content("Acqua-di-Parma-Colonia-1681.xls")
