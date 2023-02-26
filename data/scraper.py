@@ -4,6 +4,7 @@ import json
 import ast
 import time
 import os
+import re
 
 ### Global URL and Header ###
 url = 'https://www.fragrantica.com/'
@@ -93,41 +94,105 @@ def save_page_binary_content():
     """
     Extract response from file and save binary content to different files
     """
+
     f = open("data/links/hrefs.txt", "r")
     link_list_txt = f.read()
     link_list_txt = link_list_txt.replace('\n', '')
     link_list = ast.literal_eval(link_list_txt)
+
+    for i, f_name in enumerate(os.listdir("data/pages/")):
+        for l in link_list:
+            if re.search(f"^.*{f_name[:-4]}.*", l):
+                link_list.remove(l)
+
     print(len(link_list))
 
     for i, link in enumerate(link_list):
-        response = requests.get(link, headers=headers)
+        retry = True
 
-        if response.status_code == 200:
-            print(link.split('/')[-1][:-5])
-            f = open(f"data/pages/{link.split('/')[-1][:-5]}.xls", "wb")
-            f.write(response.content)
-            f.close()
-        
-        else:
-            print("Wait for 10 mins!")
-            time.sleep(600)
+        while retry:
             response = requests.get(link, headers=headers)
-            print(link.split('/')[-1][:-6])
-            f = open(f"data/pages/{link.split('/')[-1][:-5]}.xls", "wb")
-            f.write(response.content)
-            f.close()
+
+            if response.status_code == 200:
+                retry = False
+                print(link.split('/')[-1][:-5])
+                f = open(f"data/pages/{link.split('/')[-1][:-5]}.xls", "wb")
+                f.write(response.content)
+                f.close()
+            
+            else:
+                print("Wait for 10 mins!")
+                time.sleep(600)
 
 
-def read_frag_content(f_name):
+def extract_frag_data(f_name):
 
     f = open(f"data/pages/{f_name}", "rb")
     content = f.read()
     soup = BeautifulSoup(content, 'html.parser')
-    comment = soup.select("#dd1766331 > div:nth-child(2) > div:nth-child(1)")
-    print(comment)
+
+    # Extract notes
+    frag_notes = []
+    element = soup.select("#pyramid > div:nth-child(1) > div:nth-child(1)")[0]
+    for e in element.contents[1].contents[1].contents[0]:
+        frag_notes.append(e.contents[1].contents[1])
+
+    # Extract accords
+    frag_accords = {}
+    element = soup.select(".bg-white > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > div:nth-child(3)")[0]
+    for e in element:
+        accord_name = e.contents[0].contents[0]
+        accord_value = float(e.contents[0].get('style').split(':')[-1][1:-2])
+        frag_accords[accord_name] = accord_value
+
+    # Extract name
+    element = soup.select("h1.text-center")[0]
+    frag_name = element.contents[0]
+
+    # Extract sex
+    element = soup.select("h1.text-center > small:nth-child(1)")[0]
+    frag_sex = element.contents[0]
+
+    # Extract rating
+    element = soup.select("div.grid-margin-y:nth-child(4)")[0]
+    rating = element.contents[2].contents[0].contents[0].contents[1].contents[0]
+    total_votes = element.contents[2].contents[0].contents[0].contents[5].contents[0]
+
+    # TODO extract winter, spring, summer, fall, day, night
+    element = soup.select("div.grid-margin-y:nth-child(5) > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > div:nth-child(3) > div:nth-child(1) > div:nth-child(1)")
+    # print(element)
+
+    # TODO extract comments
+    "#dd1766331 > div:nth-child(2) > div:nth-child(1)"
+    element = soup.select("#all-reviews")
+    print(element)
+
+    # Extract longevity, sillage, gender, price value (between 0 to 5)
+    element = soup.select(".bg-white > div:nth-child(7)")[0]
+    longevity = float(element.contents[0].contents[3].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[3].contents[0].contents[0].contents[3].contents[0])
+    sillage = float(element.contents[0].contents[4].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[4].contents[0].contents[0].contents[3].contents[0])
+    # price_value = element.contents[0].contents[7].contents[0].contents[0].contents[1].contents[0]
+    
+    return frag_name, frag_sex, frag_accords, frag_notes, rating, total_votes, longevity, sillage
 
 
 
-# save_page_binary_content()
+def extract_all_fragrances_dataset():
 
-read_frag_content("Acqua-di-Parma-Colonia-1681.xls")
+    for i, f_name in enumerate(os.listdir("data/pages/")):
+        frag_name, frag_sex, frag_accords, frag_notes, rating, total_votes, longevity, sillage =\
+             extract_frag_data(f_name)
+        f = open(f"data/fagrances/{frag_name}.json", "w")
+        f.write(
+            json.dumps(
+                {
+                    'name': frag_name, 'sex': frag_sex, 'accords': frag_accords,
+                    'notes': frag_notes, 'rating': rating, 'total_votes': total_votes,
+                    'longevity': longevity, 'sillage': sillage, 'comments': []
+                }
+            )
+        )
+        f.close()
+        
+
+save_page_binary_content()
