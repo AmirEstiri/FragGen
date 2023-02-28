@@ -132,10 +132,28 @@ def extract_frag_data(f_name):
     soup = BeautifulSoup(content, 'html.parser')
 
     # Extract notes
-    frag_notes = []
-    element = soup.select("#pyramid > div:nth-child(1) > div:nth-child(1)")[0]
-    for e in element.contents[1].contents[1].contents[0]:
-        frag_notes.append(e.contents[1].contents[1])
+    frag_notes = {'top': [], 'middle': [], 'base': [], 'all': []}
+    element = soup.select("#pyramid > div:nth-child(1) > div:nth-child(1)")
+    if len(element) > 0:
+        element = element[0]
+        l = len(element.contents[1])-1
+        if l == 1:
+            for e in element.contents[1].contents[1].contents[0]:
+                frag_notes['all'].append(e.contents[1].contents[1])
+        else:
+            for i in range(1, l):
+                for e in element.contents[1].contents[i].contents[0]:
+                    if e == 'Top Notes':
+                        for e in element.contents[1].contents[i+1].contents[0]:
+                            frag_notes['top'].append(e.contents[1].contents[1])
+                for e in element.contents[1].contents[i].contents[0]:
+                    if e == 'Middle Notes':
+                        for e in element.contents[1].contents[i+1].contents[0]:
+                            frag_notes['middle'].append(e.contents[1].contents[1])
+                for e in element.contents[1].contents[i].contents[0]:
+                    if e == 'Base Notes':
+                        for e in element.contents[1].contents[i+1].contents[0]:
+                            frag_notes['base'].append(e.contents[1].contents[1])
 
     # Extract accords
     frag_accords = {}
@@ -155,44 +173,65 @@ def extract_frag_data(f_name):
 
     # Extract rating
     element = soup.select("div.grid-margin-y:nth-child(4)")[0]
-    rating = element.contents[2].contents[0].contents[0].contents[1].contents[0]
-    total_votes = element.contents[2].contents[0].contents[0].contents[5].contents[0]
+    if len(element.contents[2].contents) > 0:
+        rating = float(element.contents[2].contents[0].contents[0].contents[1].contents[0])
+        total_votes = int(element.contents[2].contents[0].contents[0].contents[5].contents[0])
+    else:
+        rating = 0.0
+        total_votes = 0
+
+    # Extract similar fragrances
+    element = soup.select("#main-content > div.grid-x.grid-margin-x > div.small-12.medium-12.large-9.cell > div")[0]
+    for j in range(100):
+        if re.search("^.*This perfume reminds me of.*", str(element.contents[j])):
+            break
+
+    similar_frags = []
+    for i, e in enumerate(element.contents[j].contents[0].contents[2]):
+        if i%2 == 1:
+            similar_frags.append(
+                {'Company': e.contents[1].contents[3].contents[0], 'Model': e.contents[1].contents[6][:-1]}
+            )
+
+    # Extract designer name
+    element = soup.select(".bg-white > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > p:nth-child(1) > a:nth-child(1) > span:nth-child(1)")[0]
+    designer = element.contents[0]
 
     # TODO extract winter, spring, summer, fall, day, night
-    element = soup.select("div.grid-margin-y:nth-child(5) > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > div:nth-child(3) > div:nth-child(1) > div:nth-child(1)")
-    # print(element)
+    # element = soup.select("div.carousel:nth-child(2)")
 
     # TODO extract comments
-    "#dd1766331 > div:nth-child(2) > div:nth-child(1)"
-    element = soup.select("#all-reviews")
-    print(element)
+    # element = soup.select("#all-reviews")
+    # print(element)
 
-    # Extract longevity, sillage, gender, price value (between 0 to 5)
-    element = soup.select(".bg-white > div:nth-child(7)")[0]
-    longevity = float(element.contents[0].contents[3].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[3].contents[0].contents[0].contents[3].contents[0])
-    sillage = float(element.contents[0].contents[4].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[4].contents[0].contents[0].contents[3].contents[0])
+    # TODO Extract longevity, sillage, gender, price value
+    # element = soup.select(".bg-white > div:nth-child(7)")[0]
+    # longevity = float(element.contents[0].contents[3].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[3].contents[0].contents[0].contents[3].contents[0])
+    # sillage = float(element.contents[0].contents[4].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[4].contents[0].contents[0].contents[3].contents[0])
     # price_value = element.contents[0].contents[7].contents[0].contents[0].contents[1].contents[0]
     
-    return frag_name, frag_sex, frag_accords, frag_notes, rating, total_votes, longevity, sillage
+    return frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags
 
 
 
 def extract_all_fragrances_dataset():
 
     for i, f_name in enumerate(os.listdir("data/pages/")):
-        frag_name, frag_sex, frag_accords, frag_notes, rating, total_votes, longevity, sillage =\
+        print(f_name)
+        frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags =\
              extract_frag_data(f_name)
-        f = open(f"data/fagrances/{frag_name}.json", "w")
+        f = open(f"data/fragrances/{f_name}.json", "w")
         f.write(
             json.dumps(
                 {
-                    'name': frag_name, 'sex': frag_sex, 'accords': frag_accords,
-                    'notes': frag_notes, 'rating': rating, 'total_votes': total_votes,
-                    'longevity': longevity, 'sillage': sillage, 'comments': []
+                    'name': frag_name, 'designer': designer, 'sex': frag_sex, 
+                    'accords': frag_accords, 'notes': frag_notes, 'rating': float(rating), 
+                    'total_votes': int(total_votes), 'similar_fragrances': similar_frags
                 }
             )
         )
         f.close()
         
 
-save_page_binary_content()
+# save_page_binary_content()
+extract_all_fragrances_dataset()
