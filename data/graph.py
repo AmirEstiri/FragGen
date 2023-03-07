@@ -2,22 +2,32 @@ import json
 import os
 
 
+def partial_match_score(str1, str2):
+    score = 0
+    for w1 in str1.split(' '):
+        for w2 in str2.split(' '):
+            if w1.lower() == w2.lower():
+                score += 1
+    return score
+
+
 def find_frag_id(frag_name, designer_name):
     """
-    Find the id for a fragrance using its name and designer
+    Find the id of a fragrance using its name and designer
     """
-
-    # TODO flexible search (maybe use regex) 
-
     f = open("data/dataset/initial_dataset.json")
     dataset = json.load(f)
     f.close()
 
+    max_score = 0
+    best_match = -1
     for data in dataset:
-        if data[1] == frag_name and data[2] == designer_name:
-            return data[0]
-
-    return -1
+        if data[2] == designer_name:
+            score = partial_match_score(frag_name, data[1])
+            if score > max_score:
+                max_score = score
+                best_match = data[0]
+    return best_match
 
 def create_initial_graph_dataset():
     """
@@ -87,16 +97,15 @@ def clean_graph_dataset():
     f = open("data/dataset/all_notes.txt")
     NOTES = json.load(f)
     f.close()
-
+ 
     # Replace similar frags, notes and accords with their corresponding IDs
     for data in dataset:
         sim_frag_ids = []
         for sim_frag in data[8]:
             sim_frag_id = find_frag_id(sim_frag['Model'], sim_frag['Company'])
             if sim_frag_id != -1:
-                print(sim_frag_id)
                 sim_frag_ids.append(sim_frag_id)
-        data[8] = sim_frag_ids
+        data[8] = list(dict.fromkeys(sim_frag_ids))
 
         accord_ids = []
         for accord in data[4]:
@@ -108,10 +117,27 @@ def clean_graph_dataset():
             note_ids.append(NOTES.index(note))
         data[5] = note_ids
 
+    # Remove name and designer
+    id_dataset = {}
+    for data in dataset:
+        id_dataset[data[0]] = [data[1], data[2]]
+        del data[1]
+        del data[2]
+        data[3] = float(data[3])
+        data[4] = int(data[4].replace(",", ""))
+
     f = open("data/dataset/dataset.json", "w")
     f.write(json.dumps(dataset))
     f.close()
 
+    f = open("data/dataset/id_dataset.json", "w")
+    f.write(json.dumps(id_dataset))
+    f.close()
 
+
+
+print("Creating graph data")
 create_initial_graph_dataset()
+
+print("Cleaning graph data")
 clean_graph_dataset()

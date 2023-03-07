@@ -175,13 +175,14 @@ def extract_frag_data(f_name):
     element = soup.select("div.grid-margin-y:nth-child(4)")[0]
     if len(element.contents[2].contents) > 0:
         rating = float(element.contents[2].contents[0].contents[0].contents[1].contents[0])
-        total_votes = int(element.contents[2].contents[0].contents[0].contents[5].contents[0])
+        total_votes = int(element.contents[2].contents[0].contents[0].contents[5].contents[0].replace(",",""))
     else:
         rating = 0.0
         total_votes = 0
 
     # Extract similar fragrances
     element = soup.select("#main-content > div.grid-x.grid-margin-x > div.small-12.medium-12.large-9.cell > div")[0]
+    
     for j in range(100):
         if re.search("^.*This perfume reminds me of.*", str(element.contents[j])):
             break
@@ -220,7 +221,7 @@ def extract_all_fragrances_dataset():
         print(f_name)
         frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags =\
              extract_frag_data(f_name)
-        f = open(f"data/fragrances/{f_name}.json", "w")
+        f = open(f"data/fragrances/{f_name[:-4]}.json", "w")
         f.write(
             json.dumps(
                 {
@@ -233,5 +234,7 @@ def extract_all_fragrances_dataset():
         f.close()
         
 
+
 # save_page_binary_content()
+
 extract_all_fragrances_dataset()
