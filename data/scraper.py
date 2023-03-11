@@ -190,9 +190,11 @@ def extract_frag_data(f_name):
     similar_frags = []
     for i, e in enumerate(element.contents[j].contents[0].contents[2]):
         if i%2 == 1:
-            similar_frags.append(
-                {'Company': e.contents[1].contents[3].contents[0], 'Model': e.contents[1].contents[6][:-1]}
-            )
+            ss = e.contents[1].contents[6]
+            if all(s.isalnum() or s.isspace() for s in str(ss).split()):
+                similar_frags.append(
+                    {'Company': e.contents[1].contents[3].contents[0], 'Model': e.contents[1].contents[6][:-1]}
+                )
 
     # Extract designer name
     element = soup.select(".bg-white > div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > p:nth-child(1) > a:nth-child(1) > span:nth-child(1)")[0]
@@ -216,22 +218,29 @@ def extract_frag_data(f_name):
 
 
 def extract_all_fragrances_dataset():
+    
+    extracted = []
+    for i, f_name in enumerate(os.listdir("data/fragrances/")):
+        extracted.append(f"{f_name[:-5]}.xls")
+
+    print(len(extracted))
 
     for i, f_name in enumerate(os.listdir("data/pages/")):
-        print(f_name)
-        frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags =\
-             extract_frag_data(f_name)
-        f = open(f"data/fragrances/{f_name[:-4]}.json", "w")
-        f.write(
-            json.dumps(
-                {
-                    'name': frag_name, 'designer': designer, 'sex': frag_sex, 
-                    'accords': frag_accords, 'notes': frag_notes, 'rating': float(rating), 
-                    'total_votes': int(total_votes), 'similar_fragrances': similar_frags
-                }
+        if f_name not in extracted:
+            print(f_name)
+            frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags =\
+                extract_frag_data(f_name)
+            f = open(f"data/fragrances/{f_name[:-4]}.json", "w")
+            f.write(
+                json.dumps(
+                    {
+                        'name': frag_name, 'designer': designer, 'sex': frag_sex, 
+                        'accords': frag_accords, 'notes': frag_notes, 'rating': float(rating), 
+                        'total_votes': int(total_votes), 'similar_fragrances': similar_frags
+                    }
+                )
             )
-        )
-        f.close()
+            f.close()
         
 
 

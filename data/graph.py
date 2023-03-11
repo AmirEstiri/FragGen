@@ -85,6 +85,7 @@ def create_initial_graph_dataset():
 def clean_graph_dataset():
     """
     Clean graph dataset
+    Data format: [ID, SEX, ACCORDS, NOTES, RATING, VOTES, SIMILAR FRAGS]
     """
     f = open("data/dataset/initial_dataset.json")
     dataset = json.load(f)
@@ -122,9 +123,7 @@ def clean_graph_dataset():
     for data in dataset:
         id_dataset[data[0]] = [data[1], data[2]]
         del data[1]
-        del data[2]
-        data[3] = float(data[3])
-        data[4] = int(data[4].replace(",", ""))
+        del data[1]
 
     f = open("data/dataset/dataset.json", "w")
     f.write(json.dumps(dataset))
