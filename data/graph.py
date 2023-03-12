@@ -1,5 +1,13 @@
 import json
 import os
+import numpy as np
+
+
+def find_index_from_id(id, data):
+    for i, d in enumerate(data):
+        if id == d[0]:
+            return i
+    return -1
 
 
 def partial_match_score(str1, str2):
@@ -46,17 +54,19 @@ def create_initial_graph_dataset():
         name = frag_data['name']
         designer = frag_data['designer']
         
-        if frag_data['sex'] == "for men":
+        if frag_data['sex']=="for men":
             sex = 0
-        if frag_data['sex'] == "for women":
+        if frag_data['sex']=="for women":
             sex = 1
         else:
             sex = 2
         
-        accords = frag_data['accords']
-        for accord in accords.keys():
+        accords = list(frag_data['accords'].keys())
+        accords_values = list(frag_data['accords'].values())
+        for accord in accords:
             if accord not in ACCORDS:
                 ACCORDS.append(accord)
+
         
         notes = frag_data['notes']['all'] + frag_data['notes']['top'] + frag_data['notes']['middle'] + frag_data['notes']['base']
         for note in notes:
@@ -67,7 +77,7 @@ def create_initial_graph_dataset():
         total_votes = frag_data['total_votes']
         similar = frag_data['similar_fragrances']
 
-        dataset.append([id, name, designer, sex, accords, notes, rating, total_votes, similar])
+        dataset.append([id, name, designer, sex, accords, accords_values, notes, rating, total_votes, similar])
 
     f = open("data/dataset/initial_dataset.json", "w")
     f.write(json.dumps(dataset))
@@ -85,7 +95,7 @@ def create_initial_graph_dataset():
 def clean_graph_dataset():
     """
     Clean graph dataset
-    Data format: [ID, SEX, ACCORDS, NOTES, RATING, VOTES, SIMILAR FRAGS]
+    Data format: [ID, SEX, ACCORDS, ACCORDS_VALUES, NOTES, RATING, VOTES, SIMILAR FRAGS]
     """
     f = open("data/dataset/initial_dataset.json")
     dataset = json.load(f)
@@ -102,27 +112,30 @@ def clean_graph_dataset():
     # Replace similar frags, notes and accords with their corresponding IDs
     for data in dataset:
         sim_frag_ids = []
-        for sim_frag in data[8]:
+        for sim_frag in data[9]:
             sim_frag_id = find_frag_id(sim_frag['Model'], sim_frag['Company'])
             if sim_frag_id != -1:
                 sim_frag_ids.append(sim_frag_id)
-        data[8] = list(dict.fromkeys(sim_frag_ids))
+        data[9] = list(dict.fromkeys(sim_frag_ids))
 
         accord_ids = []
         for accord in data[4]:
             accord_ids.append(ACCORDS.index(accord))
         data[4] = accord_ids
 
+        # Normalize accord values
+        data[5] = [d/sum(data[5]) for d in data[5]]
+
         note_ids = []
-        for note in data[5]:
+        for note in data[6]:
             note_ids.append(NOTES.index(note))
-        data[5] = note_ids
+        data[6] = note_ids
 
     # Remove name and designer
     id_dataset = {}
     for data in dataset:
         id_dataset[data[0]] = [data[1], data[2]]
-        del data[1]
+        del data[2]
         del data[1]
 
     f = open("data/dataset/dataset.json", "w")
@@ -134,9 +147,59 @@ def clean_graph_dataset():
     f.close()
 
 
+def clean_dataset():
+    f = open("dataset/dataset.json")
+    dataset = json.load(f)
+    f.close()
+
+    dataset_clean = []
+    removed_ids = []
+    # Remove data with less than 100 votes
+    for data in dataset:
+        if data[6] > 100:
+            dataset_clean.append(data)
+        else:
+            removed_ids.append(data[0])
+    # Remove ids of cleaned data
+    for data in dataset_clean:
+        for sim in data[7]:
+            if sim in removed_ids:
+                data[7].remove(sim)
+
+    N = len(dataset_clean)
+    A = np.zeros((N, N))
+    for i, data in enumerate(dataset_clean):
+        for sim in data[7]:
+            A[i, find_index_from_id(sim, dataset_clean)] = 1
+    A2 = np.matmul(A, A)
+    A3 = np.matmul(A2, A)
+    d3 = np.sum(A3, axis=1)
+
+    dataset_clean2 = []
+    removed_ids2 = []
+    # Remove unconnected nodes
+    for i, data in enumerate(dataset_clean):
+        if d3[i] > 300:
+            dataset_clean2.append(data)
+        else:
+            removed_ids2.append(data[0])
+    # Remove from graph completely
+    for data in dataset_clean2:
+        for sim in data[7]:
+            if sim in removed_ids2:
+                data[7].remove(sim)
+
+    f = open("dataset/dataset_clean.json", "w")
+    f.write(json.dumps(dataset_clean))
+    f.close()
+
+
 
 print("Creating graph data")
 create_initial_graph_dataset()
 
 print("Cleaning graph data")
 clean_graph_dataset()
+
+print("Removing redundant data")
+clean_dataset()
