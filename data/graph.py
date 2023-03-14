@@ -148,10 +148,10 @@ def clean_graph_dataset():
 
 
 def clean_dataset():
-    f = open("dataset/dataset.json")
+    f = open("data/dataset/dataset.json")
     dataset = json.load(f)
     f.close()
-
+    
     dataset_clean = []
     removed_ids = []
     # Remove data with less than 100 votes
@@ -162,9 +162,7 @@ def clean_dataset():
             removed_ids.append(data[0])
     # Remove ids of cleaned data
     for data in dataset_clean:
-        for sim in data[7]:
-            if sim in removed_ids:
-                data[7].remove(sim)
+        data[7] = list(set(data[7])-set(removed_ids))
 
     N = len(dataset_clean)
     A = np.zeros((N, N))
@@ -185,21 +183,47 @@ def clean_dataset():
             removed_ids2.append(data[0])
     # Remove from graph completely
     for data in dataset_clean2:
-        for sim in data[7]:
-            if sim in removed_ids2:
-                data[7].remove(sim)
+        data[7] = list(set(data[7])-set(removed_ids2))
 
-    f = open("dataset/dataset_clean.json", "w")
-    f.write(json.dumps(dataset_clean))
+    f = open("data/dataset/dataset_clean.json", "w")
+    f.write(json.dumps(dataset_clean2))
+    f.close()
+
+
+def create_notes_dataset():
+    f = open("data/dataset/dataset_clean.json")
+    dataset = json.load(f)
+    f.close()
+
+    f = open("data/dataset/all_notes.txt")
+    all_notes = json.load(f)
+    f.close()
+
+    d = len(all_notes)
+
+    data_dict = {}
+    for data in dataset:
+        id, sex, accords, accords_values, notes, rating, votes, sims = data
+        notes_ohe = [0]*d
+        for note in notes:
+            notes_ohe[note] = 1
+        data_dict[id] = [notes_ohe, sims]
+
+    f = open("data/dataset/notes_dataset.json", "w")
+    f.write(json.dumps(data_dict))
     f.close()
 
 
 
-print("Creating graph data")
-create_initial_graph_dataset()
 
-print("Cleaning graph data")
-clean_graph_dataset()
+# print("Creating graph data")
+# create_initial_graph_dataset()
 
-print("Removing redundant data")
-clean_dataset()
+# print("Cleaning graph data")
+# clean_graph_dataset()
+
+# print("Removing redundant data")
+# clean_dataset()
+
+print("Create notes dataset")
+create_notes_dataset()
