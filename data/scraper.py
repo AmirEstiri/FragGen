@@ -11,6 +11,7 @@ url = 'https://www.fragrantica.com/'
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"
 }
+    
 
 def extract_designers():
     """
@@ -203,10 +204,6 @@ def extract_frag_data(f_name):
     # TODO extract winter, spring, summer, fall, day, night
     # element = soup.select("div.carousel:nth-child(2)")
 
-    # TODO extract comments
-    # element = soup.select("#all-reviews")
-    # print(element)
-
     # TODO Extract longevity, sillage, gender, price value
     # element = soup.select(".bg-white > div:nth-child(7)")[0]
     # longevity = float(element.contents[0].contents[3].contents[0].contents[0].contents[1].contents[0]) / float(element.contents[0].contents[3].contents[0].contents[0].contents[3].contents[0])
@@ -215,6 +212,26 @@ def extract_frag_data(f_name):
     
     return frag_name, designer, frag_sex, frag_accords, frag_notes, rating, total_votes, similar_frags
 
+
+def extract_comment(f_name):
+    f = open(f"data/pages/{f_name}", "r")
+    pattern = re.compile(r'^[^<]*<br />')
+    comments = []
+    for line in f.readlines():
+        if pattern.match(line):
+            if len(line[:-7]) > 0:
+                comments.append(line[:-7])
+    return comments
+
+
+def extract_all_comments():
+
+    for i, f_name in enumerate(os.listdir("data/pages/")):
+        print(f_name)
+        comments = extract_comment(f_name)
+        f = open(f"data/comments/{f_name[:-4]}.json", "w")
+        f.write(json.dumps(comments))
+        f.close()
 
 
 def extract_all_fragrances_dataset():
@@ -246,4 +263,4 @@ def extract_all_fragrances_dataset():
 
 # save_page_binary_content()
 
-extract_all_fragrances_dataset()
+# extract_all_fragrances_dataset()
