@@ -2,12 +2,9 @@ import json
 from tqdm import tqdm
 import time
 import os
-import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
-def clean_white_spaces(s):
-    return re.sub('\s+', ' ', s)
+from utils import clean_white_spaces
 
 ### Header ###
 headers = {
@@ -37,15 +34,19 @@ def save_fragrance_links():
         time.sleep(5)
     browser.close()
     json_dataset = json.dumps(href_dataset)
-    os.makedirs(os.path.dirname("fragrancex/links"), exist_ok=True)
+    os.makedirs("fragrancex/links", exist_ok=True)
     f = open("fragrancex/links/href_dataset.json", "w")
     f.write(json_dataset)
     f.close()
 
+
 def extract_all_perfume_data():
-    os.makedirs(os.path.dirname("fragrancex/fragrances"), exist_ok=True)
+    os.makedirs("fragrancex/fragrances", exist_ok=True)
+    extracted_fragrances = os.listdir("fragrancex/fragrances")
     links = json.load(open('fragrancex/links/href_dataset.json', 'r'))
     for i, (name, link) in enumerate(links.items()):
+        if f'{name}.json' in extracted_fragrances:
+            continue
         print(f'Extracting {i+1}/{len(links)}: {name}')
         extract_fragrance_data(link)
 
@@ -61,19 +62,23 @@ def extract_fragrance_data(url):
     time.sleep(5)
 
     # Extract name of perfume
+    name = ""
     try:
-        perfume_name = browser.find_element(By.CSS_SELECTOR, f'.perfume-name').get_attribute('innerHTML')
+        name = browser.find_element(By.CSS_SELECTOR, f'.perfume-name').get_attribute('innerHTML')
     except:
         print('Perfume name not found')
-    frag_data['name'] = perfume_name
+    frag_data['name'] = name
 
     # Extract brand and gender
+    gender = ""
+    brand = ""
     try:
-        brand_name = browser.find_element(By.CSS_SELECTOR, f'.ga-product-brand').get_attribute('innerHTML')
+        brand = browser.find_element(By.CSS_SELECTOR, f'.ga-product-brand').get_attribute('innerHTML')
         gender = browser.find_element(By.CSS_SELECTOR, f'.brand-name').get_attribute('innerHTML').split(' ')[-1]
     except:
-        print('Brand/gender not found')
-    frag_data['brand'] = brand_name
+        pass
+        # print('Brand/gender not found')
+    frag_data['brand'] = brand
     frag_data['gender'] = gender[:-1]
 
     # Extract about description
@@ -84,19 +89,20 @@ def extract_fragrance_data(url):
             about += txt.get_attribute('innerHTML')
             about += '\n'
     except:
-        print('About not found')
+        pass
+        # print('About not found')
     frag_data['about'] = about[:-1]
 
     # Extract FAQ description
     faq = ""
     try:
-        
         faq_element = browser.find_element(By.CSS_SELECTOR, f'.faq-info > section:nth-child(2)')
         for txt in faq_element.find_elements(By.CSS_SELECTOR, f'*'):
             faq += txt.get_attribute('innerHTML')
             faq += '\n'
     except:
-        print('FAQ not found')
+        pass
+        # print('FAQ not found')
     frag_data['faq'] = faq[:-1]
 
     # Extract attributes
@@ -110,8 +116,11 @@ def extract_fragrance_data(url):
                 v = clean_white_spaces(tds[1].get_attribute('innerHTML'))[1:-1]
                 attributes[k] = v
     except:
-        print('Table not found')
+        pass
+        # print('Table not found')
+    frag_data['attributes'] = attributes
 
+    #TODO: Extract price?
     #TODO: Extract rating
     #TODO: Extract number of ratings
     #TODO: Extract reviews
