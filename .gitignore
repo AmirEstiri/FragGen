@@ -2,5 +2,4 @@
 *.txt
 *.json
 *.xls
-*.ckpt
 .DS_Store

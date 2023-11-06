@@ -225,7 +225,6 @@ def extract_comment(f_name):
 
 
 def extract_all_comments():
-
     for i, f_name in enumerate(os.listdir("data/pages/")):
         print(f_name)
         comments = extract_comment(f_name)
@@ -235,13 +234,10 @@ def extract_all_comments():
 
 
 def extract_all_fragrances_dataset():
-    
     extracted = []
     for i, f_name in enumerate(os.listdir("data/fragrances/")):
         extracted.append(f"{f_name[:-5]}.xls")
-
     print(len(extracted))
-
     for i, f_name in enumerate(os.listdir("data/pages/")):
         if f_name not in extracted:
             print(f_name)
