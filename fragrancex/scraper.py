@@ -4,7 +4,7 @@ import time
 import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from utils import clean_white_spaces
+from utils import clean_white_spaces, clean_html
 
 ### Header ###
 headers = {
@@ -120,10 +120,53 @@ def extract_fragrance_data(url):
         # print('Table not found')
     frag_data['attributes'] = attributes
 
-    #TODO: Extract price?
-    #TODO: Extract rating
-    #TODO: Extract number of ratings
-    #TODO: Extract reviews
+    #Extract price
+    prices = {}
+    try:
+        products = browser.find_elements(By.CSS_SELECTOR, f'.product')
+        for product in products:
+            listing_price = float(product.find_element(By.CSS_SELECTOR, f'.sale-price-val').get_attribute('innerHTML'))
+            listing_description = clean_html(product.find_element(By.CSS_SELECTOR, f'.listing-description').get_attribute('innerHTML'))[1:-1]
+            prices[listing_description] = listing_price
+    except:
+        pass
+        # print('Price not found')
+    frag_data['prices'] = prices
+
+    # Extract rating and number of ratings
+    rating = 0.0
+    rating_count = 0.0
+    try:
+        rating_count = int(browser.find_element(By.CSS_SELECTOR, f'div.review-count:nth-child(3)').get_attribute('innerHTML').split(' ')[0])
+        rating = float(browser.find_element(By.CSS_SELECTOR, f'.review-snippet > div:nth-child(1)').get_attribute('innerHTML'))
+    except:
+        pass
+        # print('Rating not found')
+    frag_data['rating'] = rating
+    frag_data['rating_count'] = rating_count
+
+    #Extract reviews
+    reviews = []
+    try:
+        start = 0
+        while True:
+            print(len(browser.find_elements(By.CSS_SELECTOR, f'.review')))
+            reviews_div = browser.find_elements(By.CSS_SELECTOR, f'.review')[start:]
+            for review_div in reviews_div:
+                review_text_div = review_div.find_element(By.CSS_SELECTOR, f'.review-text')
+                headline = review_text_div.find_element(By.CSS_SELECTOR, f'.headline').get_attribute('innerHTML')
+                comment = review_text_div.find_element(By.CSS_SELECTOR, f'.comment').get_attribute('innerHTML')
+                reviews.append({
+                    'headline': headline,
+                    'comment': comment
+                })
+            start = len(reviews)
+            browser.find_element(By.CSS_SELECTOR, f'button.load-more-reviews').click()
+            time.sleep(1)
+    except:
+        pass
+        # print('Reviews not found')
+    frag_data['reviews'] = reviews
 
     browser.close()
     f = open(f"fragrancex/fragrances/{url.split('/')[-1]}.json", "w")
@@ -131,5 +174,4 @@ def extract_fragrance_data(url):
     f.close()
 
 # links = json.load(open('fragrancex/links/href_dataset.json', 'r'))
-# extract_fragrance_data('https://www.fragrancex.com/products/armaf/club-de-nuit-intense-cologne')
 extract_all_perfume_data()
