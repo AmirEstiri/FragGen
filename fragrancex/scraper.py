@@ -44,20 +44,20 @@ def extract_all_perfume_data():
     os.makedirs("fragrancex/fragrances", exist_ok=True)
     extracted_fragrances = os.listdir("fragrancex/fragrances")
     links = json.load(open('fragrancex/links/href_dataset.json', 'r'))
+    browser = webdriver.Firefox()
+    browser.get('http://selenium.dev/')
     for i, (name, link) in enumerate(links.items()):
         if f'{name}.json' in extracted_fragrances:
             continue
         print(f'Extracting {i+1}/{len(links)}: {name}')
-        extract_fragrance_data(link)
+        extract_fragrance_data(link, browser)
 
 
-def extract_fragrance_data(url):
+def extract_fragrance_data(url, browser):
     """
     Extract information of fragrance from its link.
     """
     frag_data = {}
-    browser = webdriver.Firefox()
-    browser.get('http://selenium.dev/')
     browser.get(url)
     time.sleep(5)
 
@@ -149,8 +149,8 @@ def extract_fragrance_data(url):
     reviews = []
     try:
         start = 0
+        start_time = time.time()
         while True:
-            print(len(browser.find_elements(By.CSS_SELECTOR, f'.review')))
             reviews_div = browser.find_elements(By.CSS_SELECTOR, f'.review')[start:]
             for review_div in reviews_div:
                 review_text_div = review_div.find_element(By.CSS_SELECTOR, f'.review-text')
@@ -163,12 +163,13 @@ def extract_fragrance_data(url):
             start = len(reviews)
             browser.find_element(By.CSS_SELECTOR, f'button.load-more-reviews').click()
             time.sleep(1)
+            if time.time() - start_time > 60:
+                break
     except:
         pass
         # print('Reviews not found')
     frag_data['reviews'] = reviews
 
-    browser.close()
     f = open(f"fragrancex/fragrances/{url.split('/')[-1]}.json", "w")
     f.write(json.dumps(frag_data))
     f.close()
