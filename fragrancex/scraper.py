@@ -156,9 +156,15 @@ def extract_fragrance_data(url, browser):
                 review_text_div = review_div.find_element(By.CSS_SELECTOR, f'.review-text')
                 headline = review_text_div.find_element(By.CSS_SELECTOR, f'.headline').get_attribute('innerHTML')
                 comment = review_text_div.find_element(By.CSS_SELECTOR, f'.comment').get_attribute('innerHTML')
+                review_rating = review_div.find_element(By.CSS_SELECTOR, f'.rating').get_attribute('innerHTML')
+                helpful = review_div.find_element(By.CSS_SELECTOR, f'.helpful-votes').get_attribute('innerHTML')
+                unhelpful = review_div.find_element(By.CSS_SELECTOR, f'.unhelpful-votes').get_attribute('innerHTML')
                 reviews.append({
                     'headline': headline,
-                    'comment': comment
+                    'comment': comment,
+                    'rating': review_rating,
+                    'helpful': helpful,
+                    'unhelpful': unhelpful
                 })
             start = len(reviews)
             browser.find_element(By.CSS_SELECTOR, f'button.load-more-reviews').click()
@@ -167,12 +173,13 @@ def extract_fragrance_data(url, browser):
                 break
     except:
         pass
-        # print('Reviews not found')
+    print(len(reviews))
     frag_data['reviews'] = reviews
 
     f = open(f"fragrancex/fragrances/{url.split('/')[-1]}.json", "w")
     f.write(json.dumps(frag_data))
     f.close()
 
-# links = json.load(open('fragrancex/links/href_dataset.json', 'r'))
+
+save_fragrance_links()
 extract_all_perfume_data()
