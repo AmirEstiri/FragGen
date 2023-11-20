@@ -3,3 +3,4 @@
 *.json
 *.xls
 .DS_Store
+chatbot/configure.py
