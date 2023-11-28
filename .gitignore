@@ -2,5 +2,7 @@
 *.txt
 *.json
 *.xls
+*.log
+chatbot/configure.py
 .DS_Store
 chatbot/configure.py
